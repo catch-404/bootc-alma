@@ -2,9 +2,9 @@
 SUDO = sudo
 PODMAN = $(SUDO) podman
 
-IMAGE_NAME ?= localhost/myimage
+IMAGE_NAME ?= localhost/bootc-images/alma
 CONTAINER_FILE ?= ./Dockerfile
-VARIANT ?=
+VARIANT ?= kde
 IMAGE_CONFIG ?= ./iso.toml
 
 IMAGE_TYPE ?= iso
