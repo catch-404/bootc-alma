@@ -35,6 +35,9 @@ jobs:
     name: Build ISO
     needs: [set-env]
     uses: AlmaLinux/atomic-ci/.github/workflows/build-iso.yml@v11
+    permissions:
+      packages: write
+      id-token: write
     with:
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
       image: "${{ needs.set-env.outputs.IMAGE_REF }}:${{ needs.set-env.outputs.LATEST_TAG }}"

@@ -42,6 +42,7 @@ jobs:
     uses: AlmaLinux/atomic-ci/.github/workflows/build-image.yml@v11
     needs: set-env
     with:
+      generate-sbom: true
       image-description: "My AlmaLinux Atomic Respin"
       containerfile: Dockerfile
       image-name: "${{ needs.set-env.outputs.IMAGE_NAME }}"
