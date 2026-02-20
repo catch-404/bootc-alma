@@ -14,5 +14,9 @@ rm -rf /.gitkeep /var /boot
 mkdir -p /boot /var
 
 # Make /usr/local writeable
-mv /usr/local /var/usrlocal
+if [[ -d /usr/local ]]; then
+    mv /usr/local /var/usrlocal
+else
+    rm /usr/local
+fi
 ln -s /var/usrlocal /usr/local
