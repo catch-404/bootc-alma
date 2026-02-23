@@ -3,7 +3,12 @@
 set -xeuo pipefail
 
 # Packages
-dnf install -y fapolicyd krdc
+dnf install -y \
+    fapolicyd \
+    krdc \
+    wireguard-tools \
+    qrencode
+
 dnf remove -y \
     cockpit \
     cockpit-bridge \

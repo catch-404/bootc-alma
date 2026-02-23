@@ -13,7 +13,6 @@ autopart --type=lvm --encrypted --passphrase=placeholder --luks-version=luks2
 
 network --bootproto=dhcp --onboot=yes --activate
 
-user --name=early-setup --password=placeholder --plaintext
 sshkey --username root "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAawznEpCHISn+GmLOqe/FfK9e64ZRyB/YgjxEw9UCdY"
 rootpw --lock --allow-ssh
 
