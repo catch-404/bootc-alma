@@ -1,0 +1,4 @@
+[General]
+Prepend=org.kde.krdc.desktop;kdesystemsettings.desktop
+Append=
+IgnoreDefaults=true

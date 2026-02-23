@@ -1,0 +1,7 @@
+[KDE Action Restrictions][$i]
+ghns_enabled=false
+run_command=false
+
+[KDE Control Module Restrictions][$i]
+kcm_kwin_scripts=false
+kcm_lookandfeel=false
