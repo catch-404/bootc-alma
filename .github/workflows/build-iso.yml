@@ -34,7 +34,7 @@ jobs:
   build-iso:
     name: Build ISO
     needs: [set-env]
-    uses: ./.github/workflows/build-iso-reusable.yml
+    uses: catch-404/atomic-ci/.github/workflows/build-iso.yml@v11
     permissions:
       contents: read
       packages: write
