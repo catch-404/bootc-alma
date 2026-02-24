@@ -1,18 +1,12 @@
 [Unit]
 Description=First Boot Provisioning
-# Ensure persistent storage and basic system are ready
 After=local-fs.target systemd-user-sessions.service
-# Block display manager from starting until we're done
 Before=display-manager.service sddm-autologin-setup.service
-# Don't run if provisioning already completed (survives bootc upgrade /etc merges)
 ConditionPathExists=!/var/lib/first-boot-provisioned
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/first-boot-provision.sh
-# Self-destruct: only runs if ExecStart exits 0
-#ExecStartPost=rm -f /etc/systemd/system/first-boot-provision.service
-#ExecStartPost=rm -f /etc/systemd/system/display-manager.service.requires/first-boot-provision.service
 ExecStartPost=systemctl disable first-boot-provision.service
 ExecStartPost=rm -f /etc/systemd/system/first-boot-provision.service
 StandardInput=tty
