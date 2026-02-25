@@ -26,7 +26,7 @@ trap cleanup EXIT
 
 clear
 echo "========================================"
-echo "         First Boot Provisioning"
+echo "         User Provisioning"
 echo "========================================"
 echo ""
 
@@ -70,8 +70,7 @@ luks_device=$(blkid -t TYPE=crypto_LUKS -o device 2>/dev/null | head -1 || true)
 if [[ -z "$luks_device" ]]; then
     echo "FATAL: no LUKS device found!"
     echo "This is never expected nor normal. You should reinstall."
-    echo "Press Enter to exit"
-    read -r
+    read -r -p "Press Enter to exit"
     exit 1
 fi
 echo "LUKS device: $luks_device"
@@ -83,8 +82,7 @@ keyslot_salts=$(echo "$luks_dump" | jq '.keyslots[] | .kdf.salt')
 if [[ $(echo "$keyslot_salts" | wc -l) -gt 1 ]]; then 
     echo "FATAL: there are multiple keys!"
     echo "This is never expected nor normal. You should reinstall."
-    echo "Press Enter to exit"
-    read -r
+    read -r -p "Press Enter to exit"
     exit 1
 fi
 original_keyslot_salt="$keyslot_salts" # At that point there should only be one salt in the list
@@ -95,8 +93,7 @@ echo ""
 if ! printf '%s' "$original_passphrase" \
         | cryptsetup open --test-passphrase --batch-mode "$luks_device" 2>/dev/null; then
     echo "Error: incorrect passphrase."
-    echo "Press Enter to exit"
-    read -r
+    read -r -p "Press Enter to exit"
     exit 1
 fi
 
@@ -153,11 +150,23 @@ if systemd-cryptenroll --tpm2-device=list 2>/dev/null | grep -q "/dev/"; then
 
     rm -rf "$cred_dir"
 
-    echo
-    echo "TPM2 enrolled. At each boot you will be prompted for the TPM PIN (user password)."
+    clear
+    echo "TPM2 enrolled!"
+    echo "At each boot you will be prompted for the TPM PIN (user password)."
     echo "The recovery key unlocks the disk if the TPM is unavailable."
-    echo "Press Enter to continue..."
-    read -r
+    read -r -p "Press Enter to continue..."
+
+    echo
+    if mokutil --sb-state 2>/dev/null | grep -iq 'secureboot enabled'; then
+        echo "SecureBoot enabled!"
+        echo "Make sure your UEFI firmware is password-protected"
+        read -r -p "Press Enter to acknowledge..."
+    else
+        echo "WARNING: SecureBoot is disabled (or in setup mode)!"
+        echo "You should enable it in UEFI before using this device."
+        echo "Additionally, make sure your UEFI firmware is password-protected."
+        read -r -p "Press Enter to acknowledge..."
+    fi
 else
     echo "No TPM2 detected. Adding user password as LUKS keyslot..."
 
@@ -169,21 +178,20 @@ fi
 
 unset recovery_key
 
-new_digest=$(cryptsetup luksDump --dump-json-metadata "$luks_device" | jq '.digests[] | .digest')
+luks_dump=$(cryptsetup luksDump --dump-json-metadata "$luks_device")
+new_digest=$(echo "$luks_dump" | jq '.digests[] | .digest')
 if [[ "$original_digest" == "$new_digest" ]]; then
     echo "FATAL: volume key digest did not change after reencrypt!"
     echo "This is never expected nor normal. You should reinstall."
-    echo "Press Enter to exit"
-    read -r
+    read -r -p "Press Enter to exit"
     exit 1
 fi
 
-keyslot_salts=$(cryptsetup luksDump --dump-json-metadata "$luks_device" | jq '.keyslots[] | .kdf.salt')
+keyslot_salts=$(echo "$luks_dump" | jq '.keyslots[] | .kdf.salt')
 if [[ $keyslot_salts == *"$original_keyslot_salt"* ]]; then
     echo "FATAL! The original placeholder passphrase is still present!"
     echo "This is never expected nor normal. You should reinstall."
-    echo "Press Enter to exit"
-    read -r
+    read -r -p "Press Enter to exit"
     exit 1
 fi
 
@@ -200,7 +208,7 @@ unset password password_confirm
 # --- WireGuard keypair ---
 echo ""
 echo "========================================"
-echo "          WireGuard provisioning"
+echo "          WireGuard Provisioning"
 echo "========================================"
 echo ""
 mkdir -p /etc/wireguard
@@ -226,5 +234,5 @@ unset private_key
 
 touch /var/lib/first-boot-provisioned
 
-echo "Press Enter to continue booting..."
+echo "Press Enter to reboot..."
 read -r

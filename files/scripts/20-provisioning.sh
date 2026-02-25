@@ -2,6 +2,7 @@
 
 set -xeuo pipefail
 
-chmod +x /usr/libexec/first-boot-provision.sh
+chmod 700 /usr/libexec/first-boot-provision.sh
+chown root:root /usr/libexec/first-boot-provision.sh
 
 systemctl enable first-boot-provision.service
