@@ -63,14 +63,27 @@ echo "       LUKS Encryption Provisioning"
 echo "========================================"
 echo ""
 
-luks_device=$(blkid -t TYPE=crypto_LUKS -o device 2>/dev/null | head -1)
+luks_device=$(blkid -t TYPE=crypto_LUKS -o device 2>/dev/null | head -1 || true)
 
 if [[ -z "$luks_device" ]]; then
-    echo "Warning: no LUKS device found, this is not normal. Exiting"
+    echo "FATAL: no LUKS device found!"
+    echo "This is never expected nor normal. You should reinstall."
+    echo "Press Enter to exit"
     exit 1
 fi
 echo "LUKS device: $luks_device"
 echo ""
+
+luks_dump=$(cryptsetup luksDump --dump-json-metadata "$luks_device")
+original_digest=$(echo "$luks_dump" | jq '.digests[] | .digest')
+keyslot_salts=$(echo "$luks_dump" | jq '.keyslots[] | .kdf.salt')
+if [[ $(echo "$keyslot_salts" | wc -l) -gt 1 ]]; then 
+    echo "FATAL: there are multiple keys!"
+    echo "This is never expected nor normal. You should reinstall."
+    echo "Press Enter to exit"
+    exit 1
+fi
+original_keyslot_salt="$keyslot_salts" # At that point there should only be one salt in the list
 
 read -r -s -p "Enter current disk enrollment passphrase: " original_passphrase
 echo ""
@@ -78,12 +91,13 @@ echo ""
 if ! printf '%s' "$original_passphrase" \
         | cryptsetup open --test-passphrase --batch-mode "$luks_device" 2>/dev/null; then
     echo "Error: incorrect passphrase."
+    echo "Press Enter to exit"
     exit 1
 fi
 
 echo "Passphrase verified."
 
-recovery_key=$(head -c 1024 /dev/urandom | tr -dc 'A-Z0-9' | head -c 40 | fold -w5 | paste -sd'-')
+recovery_key=$(set +o pipefail; head -c 1024 /dev/urandom | tr -dc 'A-Z0-9' | head -c 40 | fold -w5 | paste -sd'-')
 
 echo "Adding recovery key to keyslot..."
 printf '%s' "$recovery_key" \
@@ -92,19 +106,17 @@ printf '%s' "$recovery_key" \
         --key-file <(printf '%s' "$original_passphrase") \
         "$luks_device"
 
-if [[ -n "${recovery_key:-}" ]]; then
-    echo ""
-    echo "========================================"
-    echo "   RECOVERY KEY - store this safely:"
-    echo "========================================"
-    echo ""
-    echo "$recovery_key"
-    echo ""
-    qrencode -t UTF8 "$recovery_key"
-    echo ""
-    read -r -p "Press Enter to continue..."
-    clear
-fi
+echo ""
+echo "========================================"
+echo "   RECOVERY KEY - store this safely:"
+echo "========================================"
+echo ""
+echo "$recovery_key"
+echo ""
+qrencode -t UTF8 "$recovery_key"
+echo ""
+read -r -p "Press Enter to continue..."
+clear
 
 echo "Removing original enrollment passphrase..."
 printf '%s' "$original_passphrase" \
@@ -116,6 +128,7 @@ cryptsetup reencrypt \
     --key-file <(printf '%s' "$recovery_key") \
     --resilience checksum \
     --progress-frequency 5 \
+    --verbose \
     "$luks_device"
 echo "Reencryption complete."
 
@@ -127,6 +140,22 @@ printf '%s' "$password" \
         "$luks_device"
 
 unset recovery_key
+
+new_digest=$(cryptsetup luksDump --dump-json-metadata "$luks_device" | jq '.digests[] | .digest')
+if [[ "$original_digest" == "$new_digest" ]]; then
+    echo "FATAL: volume key digest did not change after reencrypt!"
+    echo "This is never expected nor normal. You should reinstall."
+    echo "Press Enter to exit"
+    exit 1
+fi
+
+keyslot_salts=$(cryptsetup luksDump --dump-json-metadata "$luks_device" | jq '.keyslots[] | .kdf.salt')
+if [[ $keyslot_salts == *"$original_keyslot_salt"* ]]; then
+    echo "FATAL! The original placeholder passphrase is still present!"
+    echo "This is never expected nor normal. You should reinstall."
+    echo "Press Enter to exit"
+    exit 1
+fi
 
 echo "Backing up LUKS header..."
 luks_uuid=$(cryptsetup luksUUID "$luks_device")
