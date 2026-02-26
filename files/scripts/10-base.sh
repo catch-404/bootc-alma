@@ -39,7 +39,6 @@ dnf remove -y \
     qt6-qtwebengine \
     ghostscript \
     libgs \
-    krfb \
     toolbox \
     sos \
     usbmuxd \

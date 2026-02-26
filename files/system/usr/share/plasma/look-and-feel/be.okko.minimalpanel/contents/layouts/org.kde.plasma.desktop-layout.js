@@ -2,8 +2,6 @@ var panel = new Panel
 panel.height = 2 * Math.floor(gridUnit * 2.5 / 2)
 panel.location = "bottom"
 
-panel.addWidget("org.kde.plasma.kickoff")
-
 var tasks = panel.addWidget("org.kde.plasma.icontasks")
 tasks.currentConfigGroup = ["General"]
 tasks.writeConfig("launchers", [
