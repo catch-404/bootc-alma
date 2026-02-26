@@ -42,10 +42,3 @@ dnf remove -y \
 
 # TZ
 ln -sf /usr/share/zoneinfo/Europe/Brussels /etc/localtime
-
-# Session
-systemctl enable sddm
-systemctl set-default graphical.target
-
-# Autologin
-systemctl enable sddm-autologin-setup.service

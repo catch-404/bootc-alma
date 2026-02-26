@@ -1,4 +1,14 @@
 #!/bin/bash
+
+#TODO:
+# never lock, shut down (same on lid closed)
+# Disable all TTYs (doable?) after this script is done
+# fapolicyd
+# firewall default drop
+# Set up wireguard connection (NM, wg-quick, something)
+# restrict NetworkManager (polkit rules?)
+# autostart rdp client, preconfigure it
+
 set -euo pipefail
 
 setfont sun12x22
@@ -31,25 +41,16 @@ password_hash=$(openssl rand -base64 32 | openssl passwd -6 -stdin) # random pas
 groupadd --gid 1000 "$username"
 useradd -m -u 1000 -g 1000 -c "$user_display_name" -p "$password_hash" "$username"
 
+# Autologin
+mkdir -p /etc/sddm.conf.d
+printf "[Autologin]\nUser=%s\nSession=plasma\n" "$username" > /etc/sddm.conf.d/autologin.conf
+
 # --- LUKS reencryption ---
 echo ""
 echo "========================================"
 echo "       LUKS Encryption Provisioning"
 echo "========================================"
 echo ""
-
-while true; do
-    read -r -s -p "Passphrase: " passphrase
-    echo
-    if [[ ${#passphrase} -lt 8 ]]; then
-        echo "Passphrase must be at least 8 characters."
-        continue
-    fi
-    read -r -s -p "Confirm passphrase: " passphrase_confirm
-    echo
-    [[ "$passphrase" == "$passphrase_confirm" ]] && break
-    echo "passphrases do not match. Try again."
-done
 
 luks_device=$(blkid -t TYPE=crypto_LUKS -o device 2>/dev/null | head -1 || true)
 
@@ -72,17 +73,31 @@ if [[ $(echo "$keyslot_salts" | wc -l) -gt 1 ]]; then
 fi
 original_keyslot_salt="$keyslot_salts" # At that point there should only be one salt in the list
 
-read -r -s -p "Enter current disk enrollment passphrase: " original_passphrase
-echo ""
+while true; do
+    read -r -s -p "Enter current disk enrollment passphrase: " original_passphrase
+    echo ""
+    if printf '%s' "$original_passphrase" \
+           | cryptsetup open --test-passphrase --batch-mode "$luks_device" 2>/dev/null; then
+       echo "Passphrase verified."
+       break
+    else
+       echo "Error: incorrect passphrase."
+    fi
+done
 
-if ! printf '%s' "$original_passphrase" \
-        | cryptsetup open --test-passphrase --batch-mode "$luks_device" 2>/dev/null; then
-    echo "Error: incorrect passphrase."
-    read -r -p "Press Enter to exit"
-    exit 1
-fi
-
-echo "Passphrase verified."
+while true; do
+    echo
+    read -r -s -p "New passphrase: " passphrase
+    echo
+    if [[ ${#passphrase} -lt 8 ]]; then
+        echo "Passphrase must be at least 8 characters."
+        continue
+    fi
+    read -r -s -p "Confirm new passphrase: " passphrase_confirm
+    echo
+    [[ "$passphrase" == "$passphrase_confirm" ]] && break
+    echo "passphrases do not match. Try again."
+done
 
 recovery_key=$(set +o pipefail; head -c 1024 /dev/urandom | tr -dc 'A-Z0-9' | head -c 40 | fold -w5 | paste -sd'-')
 
@@ -93,7 +108,7 @@ printf '%s' "$recovery_key" \
         --key-file <(printf '%s' "$original_passphrase") \
         "$luks_device"
 
-echo ""
+clear
 echo "========================================"
 echo "   RECOVERY KEY - store this safely:"
 echo "========================================"
@@ -130,20 +145,18 @@ if systemd-cryptenroll --tpm2-device=list 2>/dev/null | grep -q "/dev/"; then
     echo
     echo "At each boot you will be prompted for the TPM PIN (passphrase)."
     echo "The recovery key unlocks the disk if the TPM is unavailable."
-    read -r -p "Press Enter to continue..."
     echo
 
     echo
     if mokutil --sb-state 2>/dev/null | grep -iq 'secureboot enabled'; then
         echo "SecureBoot enabled!"
         echo "Make sure your UEFI firmware is password-protected"
-        read -r -p "Press Enter to acknowledge..."
     else
         echo "WARNING: SecureBoot is disabled (or in setup mode)!"
         echo "You should enable it in UEFI before using this device."
         echo "Additionally, make sure your UEFI firmware is password-protected."
-        read -r -p "Press Enter to acknowledge..."
     fi
+    read -r -p "Press Enter to acknowledge..."
 else
     echo "No TPM2 detected. Adding new passphrase as LUKS keyslot..."
 
@@ -164,22 +177,14 @@ if [[ $keyslot_salts == *"$original_keyslot_salt"* ]]; then
     exit 1
 fi
 
-echo "Backing up LUKS header..."
-luks_uuid=$(cryptsetup luksUUID "$luks_device")
-header_backup="/var/lib/luks-header-${luks_uuid}.img"
-cryptsetup luksHeaderBackup "$luks_device" \
-    --header-backup-file "$header_backup"
-chmod 600 "$header_backup"
-echo "Header backed up to: $header_backup"
-echo "Consider copying it in a separate, secure destination."
-
 echo
 echo "LUKS setup done."
+read -r -p "Press Enter to continue..."
 
 unset passphrase passphrase_confirm
 
 # --- WireGuard ---
-echo ""
+clear
 echo "========================================"
 echo "          WireGuard Provisioning"
 echo "========================================"

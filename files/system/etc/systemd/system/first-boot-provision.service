@@ -1,7 +1,7 @@
 [Unit]
 Description=First Boot Provisioning
 After=local-fs.target systemd-user-sessions.service
-Before=display-manager.service sddm-autologin-setup.service
+Before=display-manager.service
 ConditionPathExists=!/var/lib/first-boot-provisioned
 
 [Service]
