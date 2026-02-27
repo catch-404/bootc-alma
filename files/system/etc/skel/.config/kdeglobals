@@ -1,2 +1,9 @@
 [KDE]
 LookAndFeelPackage=be.okko.minimalpanel
+
+[KDE Action Restrictions][$i]
+ghns=false
+run_command=false
+
+[KDE Control Module Restrictions][$i]
+kcm_kwin_scripts=false

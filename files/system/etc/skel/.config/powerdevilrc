@@ -1,0 +1,4 @@
+[AC][SuspendAndShutdown]
+AutoSuspendAction=8
+AutoSuspendIdleTimeoutSec=900
+PowerButtonAction=8

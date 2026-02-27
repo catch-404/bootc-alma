@@ -2,31 +2,49 @@
 
 set -xeuo pipefail
 
-# Packages
+# EPEL
+dnf install -y 'dnf-command(config-manager)' epel-release
+dnf config-manager --set-enabled crb
+dnf upgrade -y $(dnf repoquery --installed --qf '%{name}' --whatprovides epel-release)
+
+# KDE minimal
+dnf install -y --setopt=group_package_types=mandatory @"KDE"
+
+# Other needed packages
 dnf install -y \
-    fapolicyd \
+    glibc-langpack-fr \
+    plymouth \
+    plymouth-system-theme \
+    kde-settings \
+    kscreen \
+    NetworkManager \
+    NetworkManager-wifi \
+    plasma-nm \
     krdc \
+    fapolicyd \
     wireguard-tools \
     qrencode
 
+# Unnecessary things
 dnf remove -y \
-    cockpit \
-    cockpit-bridge \
-    cockpit-ws \
-    cockpit-ws-selinux \
-    plasma-discover \
-    plasma-discover-libs \
-    flatpak \
-    flatpak-libs \
-    flatpak-selinux \
-    flatpak-session-helper \
-    konsole \
-    konsole-part \
-    krfb
-
-# systemd
-systemctl disable system-flatpak-setup.timer
-systemctl --global disable user-flatpak-setup.timer
+    nfs-utils \
+    quota \
+    rpcbind \
+    cloud-utils-growpart \
+    WALinuxAgent-udev \
+    kdump-utils \
+    kexec-tools \
+    makedumpfile \
+    PackageKit \
+    qt6-qtwebengine \
+    ghostscript \
+    libgs \
+    toolbox \
+    sos \
+    usbmuxd \
+    plasma-welcome \
+    tracker \
+    xwaylandvideobridge
 
 # TZ
 ln -sf /usr/share/zoneinfo/Europe/Brussels /etc/localtime
